@@ -25,7 +25,12 @@ public class VideoProcessingListener {
     public void handle(VideoProcessingEvent event) {
         logLocalSqsReceive(event);
         LOGGER.info("Starting processing for videoId={}", event.videoId());
-        orchestrator.process(event);
+        try {
+            orchestrator.process(event);
+        } catch (RuntimeException ex) {
+            LOGGER.error("Processing failed for videoId={}. Message will return to the queue for retry/DLQ handling.", event.videoId(), ex);
+            throw ex;
+        }
     }
 
     private void logLocalSqsReceive(VideoProcessingEvent event) {

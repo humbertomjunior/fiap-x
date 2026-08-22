@@ -1,31 +1,140 @@
-name: CI Pipeline - Build & Tests
+name: FIAP-X CI/CD
 
 on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
+
+env:
+  JAVA_VERSION: "21"
+  AWS_REGION: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || 'us-east-1' }}
 
 jobs:
   build-and-test:
+    name: Build And Test
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Baixa o código do repositório
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Configura o Java 21 com cache do Maven para acelerar o build
-      - name: Set up JDK 21
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
           cache: maven
 
-      # 3. Dá permissão de execução ao wrapper do Maven (se usar mvnw)
       - name: Grant execute permission for mvnw
         run: chmod +x mvnw || true
 
-      # 4. Executa a compilação e todos os testes unitários do monorepo
-      - name: Build and Run Tests
+      - name: Build and run tests
         run: mvn clean test
+
+  build-and-push-images:
+    name: Build And Push Images
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: auth-service
+            dockerfile: auth-service/Dockerfile
+          - name: video-api-service
+            dockerfile: video-api-service/Dockerfile
+          - name: video-worker-service
+            dockerfile: video-worker-service/Dockerfile
+          - name: notification-service
+            dockerfile: notification-service/Dockerfile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY_PREFIX }}-${{ matrix.service.name }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
+
+  deploy-to-ecs:
+    name: Deploy To ECS
+    runs-on: ubuntu-latest
+    needs:
+      - build-and-push-images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.ENABLE_ECS_DEPLOY == 'true'
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Placeholder deploy to ECS
+        run: |
+          echo "ECS deploy placeholder enabled."
+          echo "Preencha e/ou ajuste as variaveis abaixo quando a infraestrutura AWS existir:"
+          echo "- vars.ECS_CLUSTER_NAME"
+          echo "- vars.ECS_AUTH_SERVICE_NAME"
+          echo "- vars.ECS_VIDEO_API_SERVICE_NAME"
+          echo "- vars.ECS_VIDEO_WORKER_SERVICE_NAME"
+          echo "- vars.ECS_NOTIFICATION_SERVICE_NAME"
+          echo "- task definitions, image tags e estrategia de rollout"
+          aws ecs update-service \
+            --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
+            --service "${{ vars.ECS_AUTH_SERVICE_NAME }}" \
+            --force-new-deployment
+          aws ecs update-service \
+            --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
+            --service "${{ vars.ECS_VIDEO_API_SERVICE_NAME }}" \
+            --force-new-deployment
+          aws ecs update-service \
+            --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
+            --service "${{ vars.ECS_VIDEO_WORKER_SERVICE_NAME }}" \
+            --force-new-deployment
+          aws ecs update-service \
+            --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
+            --service "${{ vars.ECS_NOTIFICATION_SERVICE_NAME }}" \
+            --force-new-deployment

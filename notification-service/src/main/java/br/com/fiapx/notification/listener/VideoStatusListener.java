@@ -21,6 +21,11 @@ public class VideoStatusListener {
     @SqsListener("${app.sqs.queues.video-status}")
     public void handle(VideoStatusEvent event) {
         LOGGER.info("Received video status event: videoId={} status={}", event.videoId(), event.status());
-        notificationService.process(event);
+        try {
+            notificationService.process(event);
+        } catch (RuntimeException ex) {
+            LOGGER.error("Notification processing failed for videoId={}. Message will return to the queue for retry/DLQ handling.", event.videoId(), ex);
+            throw ex;
+        }
     }
 }
