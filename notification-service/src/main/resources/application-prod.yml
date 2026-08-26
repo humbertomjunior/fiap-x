@@ -19,9 +19,16 @@ spring:
           video-status: ${AWS_SQS_VIDEO_STATUS_QUEUE}
         listener:
           missing-queue-destination-behavior: ignore
+
   mail:
     host: ${MAIL_HOST}
     port: ${MAIL_PORT}
 
+management:
+  endpoint:
+    health:
+      show-details: never
+
 jwt:
   secret: ${JWT_SECRET}
+
