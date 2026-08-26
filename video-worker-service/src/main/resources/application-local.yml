@@ -14,3 +14,7 @@ spring:
         endpoint: http://localhost:4566 # Endpoint fixo do LocalStack
         queues:
           video-uploaded: video-uploaded-queue
+management:
+  endpoint:
+    health:
+      show-details: always

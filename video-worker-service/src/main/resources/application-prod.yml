@@ -20,3 +20,8 @@ spring:
           video-uploaded: ${AWS_SQS_VIDEO_UPLOADED_QUEUE}
         listener:
           missing-queue-destination-behavior: ignore
+
+management:
+  endpoint:
+    health:
+      show-details: never

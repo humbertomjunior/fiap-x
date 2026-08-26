@@ -3,6 +3,7 @@ package br.com.fiapx.videoworker.service;
 import br.com.fiapx.common.event.VideoProcessingEvent;
 import br.com.fiapx.common.event.VideoStatusEvent;
 import br.com.fiapx.videoworker.config.ProcessingProperties;
+import br.com.fiapx.videoworker.metrics.VideoProcessingMetrics;
 import io.awspring.cloud.sqs.operations.SqsSendOptions;
 import io.awspring.cloud.sqs.operations.SqsTemplate;
 import org.junit.jupiter.api.Test;
@@ -37,8 +38,9 @@ class VideoProcessingOrchestratorTest {
         ZipService zipService = mock(ZipService.class);
         SqsTemplate sqsTemplate = mock(SqsTemplate.class);
         Environment environment = mock(Environment.class);
+        VideoProcessingMetrics metrics = mock(VideoProcessingMetrics.class);
         VideoProcessingOrchestrator orchestrator = new VideoProcessingOrchestrator(
-                ffmpegService, zipService, sqsTemplate, properties(tempDir), environment);
+                ffmpegService, zipService, sqsTemplate, properties(tempDir), environment, metrics);
         VideoProcessingEvent event = event();
         Path framesDir = tempDir.resolve("frames").resolve(event.userId().toString()).resolve(event.videoId().toString());
         Path zipPath = Files.createFile(tempDir.resolve("output.zip"));
@@ -64,8 +66,9 @@ class VideoProcessingOrchestratorTest {
         ZipService zipService = mock(ZipService.class);
         SqsTemplate sqsTemplate = mock(SqsTemplate.class);
         Environment environment = mock(Environment.class);
+        VideoProcessingMetrics metrics = mock(VideoProcessingMetrics.class);
         VideoProcessingOrchestrator orchestrator = new VideoProcessingOrchestrator(
-                ffmpegService, zipService, sqsTemplate, properties(tempDir), environment);
+                ffmpegService, zipService, sqsTemplate, properties(tempDir), environment, metrics);
         VideoProcessingEvent event = event();
         Path framesDir = tempDir.resolve("frames").resolve(event.userId().toString()).resolve(event.videoId().toString());
         Files.createDirectories(framesDir);
@@ -94,8 +97,9 @@ class VideoProcessingOrchestratorTest {
         ZipService zipService = mock(ZipService.class);
         SqsTemplate sqsTemplate = mock(SqsTemplate.class);
         Environment environment = mock(Environment.class);
+        VideoProcessingMetrics metrics = mock(VideoProcessingMetrics.class);
         VideoProcessingOrchestrator orchestrator = new VideoProcessingOrchestrator(
-                ffmpegService, zipService, sqsTemplate, properties(tempDir), environment);
+                ffmpegService, zipService, sqsTemplate, properties(tempDir), environment, metrics);
         VideoProcessingEvent event = event();
         Path framesDir = tempDir.resolve("frames").resolve(event.userId().toString()).resolve(event.videoId().toString());
         Files.createDirectories(framesDir);
