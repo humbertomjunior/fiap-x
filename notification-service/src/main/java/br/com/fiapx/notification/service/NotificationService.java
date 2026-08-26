@@ -4,8 +4,10 @@ import br.com.fiapx.common.event.VideoStatusEvent;
 import br.com.fiapx.notification.config.NotificationProperties;
 import br.com.fiapx.notification.domain.NotificationHistory;
 import br.com.fiapx.notification.dto.NotificationResponseDTO;
+import br.com.fiapx.notification.metrics.NotificationMetrics;
 import br.com.fiapx.notification.repository.NotificationHistoryRepository;
 import br.com.fiapx.notification.security.AuthenticatedUser;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -23,31 +25,43 @@ public class NotificationService {
 
     private final NotificationHistoryRepository notificationHistoryRepository;
     private final NotificationEmailSender notificationEmailSender;
+    private final NotificationMetrics metrics;
 
     public NotificationService(
             NotificationHistoryRepository notificationHistoryRepository,
-            NotificationEmailSender notificationEmailSender) {
+            NotificationEmailSender notificationEmailSender,
+            NotificationMetrics metrics) {
         this.notificationHistoryRepository = notificationHistoryRepository;
         this.notificationEmailSender = notificationEmailSender;
+        this.metrics = metrics;
     }
 
     @Transactional
     public void process(VideoStatusEvent event) {
-        String normalizedStatus = normalizeStatus(event.status());
-        String subject = buildSubject(normalizedStatus);
-        String message = buildMessage(normalizedStatus, event);
+        Timer.Sample sample = metrics.startTimer();
+        try {
+            String normalizedStatus = normalizeStatus(event.status());
+            String subject = buildSubject(normalizedStatus);
+            String message = buildMessage(normalizedStatus, event);
 
-        NotificationHistory notificationHistory = new NotificationHistory();
-        notificationHistory.setUserId(event.userId());
-        notificationHistory.setUserEmail(event.userEmail());
-        notificationHistory.setVideoId(event.videoId());
-        notificationHistory.setStatus(normalizedStatus);
-        notificationHistory.setSubject(subject);
-        notificationHistory.setMessage(message);
-        notificationHistory.setCreatedAt(event.updatedAt() != null ? event.updatedAt() : LocalDateTime.now());
-        notificationHistoryRepository.save(notificationHistory);
+            NotificationHistory notificationHistory = new NotificationHistory();
+            notificationHistory.setUserId(event.userId());
+            notificationHistory.setUserEmail(event.userEmail());
+            notificationHistory.setVideoId(event.videoId());
+            notificationHistory.setStatus(normalizedStatus);
+            notificationHistory.setSubject(subject);
+            notificationHistory.setMessage(message);
+            notificationHistory.setCreatedAt(event.updatedAt() != null ? event.updatedAt() : LocalDateTime.now());
+            notificationHistoryRepository.save(notificationHistory);
 
-        notificationEmailSender.send(event, normalizedStatus, subject, message);
+            notificationEmailSender.send(event, normalizedStatus, subject, message);
+            metrics.recordSuccess();
+        } catch (RuntimeException ex) {
+            metrics.recordFailure();
+            throw ex;
+        } finally {
+            metrics.stopTimer(sample);
+        }
     }
 
     @Transactional(readOnly = true)

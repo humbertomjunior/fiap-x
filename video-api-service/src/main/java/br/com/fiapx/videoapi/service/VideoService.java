@@ -7,9 +7,11 @@ import br.com.fiapx.videoapi.domain.Video;
 import br.com.fiapx.videoapi.domain.VideoStatus;
 import br.com.fiapx.videoapi.dto.VideoResponseDTO;
 import br.com.fiapx.videoapi.dto.VideoUploadResponseDTO;
+import br.com.fiapx.videoapi.metrics.VideoApiMetrics;
 import br.com.fiapx.videoapi.repository.VideoRepository;
 import br.com.fiapx.videoapi.security.AuthenticatedUser;
 import io.awspring.cloud.sqs.operations.SqsTemplate;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
@@ -41,42 +43,55 @@ public class VideoService {
     private final SqsTemplate sqsTemplate;
     private final Path uploadRoot;
     private final Environment environment;
+    private final VideoApiMetrics metrics;
 
     public VideoService(
             VideoRepository videoRepository,
             SqsTemplate sqsTemplate,
             StorageProperties storageProperties,
-            Environment environment) {
+            Environment environment,
+            VideoApiMetrics metrics) {
         this.videoRepository = videoRepository;
         this.sqsTemplate = sqsTemplate;
         this.uploadRoot = Path.of(storageProperties.uploadDir()).toAbsolutePath().normalize();
         this.environment = environment;
+        this.metrics = metrics;
     }
 
     @Transactional
     public VideoUploadResponseDTO uploadVideo(AuthenticatedUser user, MultipartFile file, String title) {
-        validateFile(file);
-        String originalFilename = sanitizeFilename(file.getOriginalFilename());
-        String resolvedTitle = StringUtils.hasText(title) ? title.trim() : stripExtension(originalFilename);
-        Path storedFile = storeOriginalFile(file, user.userId(), originalFilename);
+        Timer.Sample sample = metrics.startUploadTimer();
+        try {
+            validateFile(file);
+            String originalFilename = sanitizeFilename(file.getOriginalFilename());
+            String resolvedTitle = StringUtils.hasText(title) ? title.trim() : stripExtension(originalFilename);
+            Path storedFile = storeOriginalFile(file, user.userId(), originalFilename);
 
-        Video video = new Video();
-        video.setUserId(user.userId());
-        video.setUserEmail(user.email());
-        video.setTitle(resolvedTitle);
-        video.setOriginalFileName(originalFilename);
-        video.setOriginalStoragePath(storedFile.toString());
-        video.setStatus(VideoStatus.PENDING);
+            Video video = new Video();
+            video.setUserId(user.userId());
+            video.setUserEmail(user.email());
+            video.setTitle(resolvedTitle);
+            video.setOriginalFileName(originalFilename);
+            video.setOriginalStoragePath(storedFile.toString());
+            video.setStatus(VideoStatus.PENDING);
 
-        Video savedVideo = videoRepository.save(video);
-        publishVideoUploaded(savedVideo);
+            Video savedVideo = videoRepository.save(video);
+            publishVideoUploaded(savedVideo);
 
-        return new VideoUploadResponseDTO(
-                savedVideo.getId(),
-                savedVideo.getTitle(),
-                savedVideo.getStatus(),
-                "Video uploaded successfully and queued for processing"
-        );
+            metrics.recordUploadSuccess(file.getSize());
+
+            return new VideoUploadResponseDTO(
+                    savedVideo.getId(),
+                    savedVideo.getTitle(),
+                    savedVideo.getStatus(),
+                    "Video uploaded successfully and queued for processing"
+            );
+        } catch (RuntimeException ex) {
+            metrics.recordUploadFailure();
+            throw ex;
+        } finally {
+            metrics.stopUploadTimer(sample);
+        }
     }
 
     @Transactional(readOnly = true)
