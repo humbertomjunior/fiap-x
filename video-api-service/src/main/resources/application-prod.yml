@@ -16,7 +16,6 @@ spring:
       credentials:
         access-key: ${AWS_ACCESS_KEY_ID:test}
         secret-key: ${AWS_SECRET_ACCESS_KEY:test}
-
 jwt:
   secret: ${JWT_SECRET}
 
@@ -28,3 +27,8 @@ app:
     upload-dir: ${UPLOAD_DIR:/app/storage/uploads}
     frames-dir: ${FRAMES_DIR:/app/storage/frames}
     zips-dir: ${ZIPS_DIR:/app/storage/zips}
+
+management:
+  endpoint:
+    health:
+      show-details: never
