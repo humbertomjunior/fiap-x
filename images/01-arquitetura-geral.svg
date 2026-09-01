@@ -1,0 +1,143 @@
+<svg width="1300" height="990" viewBox="0 0 1300 990" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#555" stroke-width="1.6"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1300" height="990" fill="#ffffff"/>
+  <text x="650" y="34" text-anchor="middle" font-size="20" font-weight="600" fill="#1a1a1a">FIAP-X — Arquitetura de microsserviços</text>
+
+  <!-- Client -->
+  <rect x="520" y="60" width="260" height="50" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="1"/>
+  <text x="650" y="90" text-anchor="middle" font-size="14" font-weight="600" fill="#26215C">Cliente (Web / Postman / App)</text>
+
+  <!-- Application layer container -->
+  <rect x="40" y="140" width="1220" height="230" rx="16" fill="#F7F7F7" stroke="#B4B2A9" stroke-width="1"/>
+  <text x="60" y="166" font-size="14" font-weight="600" fill="#444441">Camada de aplicação — Spring Boot 3 / Java 21 (containers Docker)</text>
+
+  <!-- 4 services -->
+  <g>
+    <rect x="70" y="185" width="270" height="80" rx="10" fill="#E6F1FB" stroke="#185FA5" stroke-width="1"/>
+    <text x="205" y="212" text-anchor="middle" font-size="14" font-weight="600" fill="#042C53">auth-service</text>
+    <text x="205" y="230" text-anchor="middle" font-size="12" fill="#0C447C">porta 8081 · JWT · cadastro/login</text>
+    <text x="205" y="248" text-anchor="middle" font-size="12" fill="#0C447C">DB: fiapx_auth</text>
+  </g>
+
+  <g>
+    <rect x="370" y="185" width="270" height="80" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1"/>
+    <text x="505" y="212" text-anchor="middle" font-size="14" font-weight="600" fill="#04342C">video-api-service</text>
+    <text x="505" y="230" text-anchor="middle" font-size="12" fill="#085041">porta 8082 · upload/listagem/download</text>
+    <text x="505" y="248" text-anchor="middle" font-size="12" fill="#085041">DB: fiapx_video</text>
+  </g>
+
+  <g>
+    <rect x="670" y="185" width="270" height="80" rx="10" fill="#FAECE7" stroke="#993C1D" stroke-width="1"/>
+    <text x="805" y="212" text-anchor="middle" font-size="14" font-weight="600" fill="#4A1B0C">video-worker-service</text>
+    <text x="805" y="230" text-anchor="middle" font-size="12" fill="#712B13">porta 8083 · FFmpeg + ZIP</text>
+    <text x="805" y="248" text-anchor="middle" font-size="12" fill="#712B13">DB: fiapx_video_worker</text>
+  </g>
+
+  <g>
+    <rect x="970" y="185" width="270" height="80" rx="10" fill="#FBEAF0" stroke="#993556" stroke-width="1"/>
+    <text x="1105" y="212" text-anchor="middle" font-size="14" font-weight="600" fill="#4B1528">notification-service</text>
+    <text x="1105" y="230" text-anchor="middle" font-size="12" fill="#72243E">porta 8084 · e-mail + histórico</text>
+    <text x="1105" y="248" text-anchor="middle" font-size="12" fill="#72243E">DB: fiapx_notification</text>
+  </g>
+
+  <!-- common module -->
+  <rect x="70" y="295" width="1170" height="55" rx="10" fill="#ffffff" stroke="#B4B2A9" stroke-width="1" stroke-dasharray="4 4"/>
+  <text x="655" y="320" text-anchor="middle" font-size="12" fill="#5F5E5A">módulo common (biblioteca compartilhada, sem servidor próprio): eventos SQS e constantes de fila</text>
+  <text x="655" y="336" text-anchor="middle" font-size="12" fill="#5F5E5A">(VideoProcessingEvent, VideoStatusEvent, VideoNotificationEvent) — usado pelos 4 serviços</text>
+
+  <!-- arrows client -> services -->
+  <line x1="600" y1="110" x2="230" y2="185" stroke="#555" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <line x1="660" y1="110" x2="520" y2="185" stroke="#555" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="360" y="150" font-size="11" fill="#5F5E5A">HTTP /auth/**</text>
+  <text x="640" y="150" font-size="11" fill="#5F5E5A">HTTP /videos/** (JWT Bearer)</text>
+
+  <!-- Messaging container -->
+  <rect x="40" y="405" width="1220" height="220" rx="16" fill="#FAEEDA" stroke="#854F0B" stroke-width="1"/>
+  <text x="60" y="431" font-size="14" font-weight="600" fill="#633806">Mensageria assíncrona — Amazon SQS (LocalStack em dev)</text>
+
+  <g>
+    <rect x="70" y="450" width="330" height="50" rx="8" fill="#ffffff" stroke="#854F0B" stroke-width="1"/>
+    <text x="235" y="480" text-anchor="middle" font-size="13" font-weight="600" fill="#412402">video-uploaded-queue</text>
+    <rect x="70" y="512" width="330" height="34" rx="6" fill="#ffffff" stroke="#854F0B" stroke-width="0.7" stroke-dasharray="3 3"/>
+    <text x="235" y="534" text-anchor="middle" font-size="11" fill="#633806">video-uploaded-queue-dlq (maxReceive=4)</text>
+  </g>
+
+  <g>
+    <rect x="470" y="450" width="330" height="50" rx="8" fill="#ffffff" stroke="#854F0B" stroke-width="1"/>
+    <text x="635" y="480" text-anchor="middle" font-size="13" font-weight="600" fill="#412402">video-status-api-queue</text>
+    <rect x="470" y="512" width="330" height="34" rx="6" fill="#ffffff" stroke="#854F0B" stroke-width="0.7" stroke-dasharray="3 3"/>
+    <text x="635" y="534" text-anchor="middle" font-size="11" fill="#633806">video-status-api-queue-dlq (maxReceive=4)</text>
+  </g>
+
+  <g>
+    <rect x="870" y="450" width="330" height="50" rx="8" fill="#ffffff" stroke="#854F0B" stroke-width="1"/>
+    <text x="1035" y="480" text-anchor="middle" font-size="13" font-weight="600" fill="#412402">video-status-notification-queue</text>
+    <rect x="870" y="512" width="330" height="34" rx="6" fill="#ffffff" stroke="#854F0B" stroke-width="0.7" stroke-dasharray="3 3"/>
+    <text x="1035" y="534" text-anchor="middle" font-size="11" fill="#633806">video-status-notification-queue-dlq (maxReceive=4)</text>
+  </g>
+
+  <text x="655" y="580" text-anchor="middle" font-size="11" fill="#633806">Visibility timeout: video-uploaded=900s (processamento longo) · filas de status=120s</text>
+
+  <!-- arrows services -> queues (top) -->
+  <line x1="505" y1="265" x2="235" y2="450" stroke="#993C1D" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="150" y="280" font-size="11" fill="#712B13">publica (video-api)</text>
+
+  <line x1="805" y1="265" x2="235" y2="450" stroke="#993C1D" stroke-width="1.3" stroke-dasharray="2 3" marker-end="url(#arrow)"/>
+  <text x="600" y="280" font-size="11" fill="#712B13">consome (worker)</text>
+
+  <line x1="805" y1="265" x2="635" y2="450" stroke="#993C1D" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <line x1="805" y1="265" x2="1035" y2="450" stroke="#993C1D" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="850" y="280" font-size="11" fill="#712B13">publica status (worker)</text>
+
+  <line x1="635" y1="450" x2="505" y2="265" stroke="#185FA5" stroke-width="1.3" stroke-dasharray="2 3" marker-end="url(#arrow)"/>
+  <text x="440" y="392" font-size="11" fill="#0C447C">consome (video-api atualiza status)</text>
+
+  <line x1="1035" y1="450" x2="1105" y2="265" stroke="#993556" stroke-width="1.3" stroke-dasharray="2 3" marker-end="url(#arrow)"/>
+  <text x="1000" y="392" font-size="11" fill="#72243E">consome (notification)</text>
+
+  <!-- Bottom infra containers -->
+  <rect x="40" y="655" width="580" height="300" rx="16" fill="#EAF3DE" stroke="#3B6D11" stroke-width="1"/>
+  <text x="60" y="681" font-size="14" font-weight="600" fill="#173404">PostgreSQL 16 (1 instância, 1 database por serviço)</text>
+
+  <rect x="70" y="700" width="250" height="46" rx="8" fill="#ffffff" stroke="#3B6D11" stroke-width="1"/>
+  <text x="195" y="728" text-anchor="middle" font-size="12" fill="#173404">fiapx_auth</text>
+  <rect x="340" y="700" width="250" height="46" rx="8" fill="#ffffff" stroke="#3B6D11" stroke-width="1"/>
+  <text x="465" y="728" text-anchor="middle" font-size="12" fill="#173404">fiapx_video</text>
+  <rect x="70" y="760" width="250" height="46" rx="8" fill="#ffffff" stroke="#3B6D11" stroke-width="1"/>
+  <text x="195" y="788" text-anchor="middle" font-size="12" fill="#173404">fiapx_video_worker</text>
+  <rect x="340" y="760" width="250" height="46" rx="8" fill="#ffffff" stroke="#3B6D11" stroke-width="1"/>
+  <text x="465" y="788" text-anchor="middle" font-size="12" fill="#173404">fiapx_notification</text>
+
+  <text x="330" y="850" text-anchor="middle" font-size="11" fill="#3B6D11">ddl-auto: update · 1 schema isolado por serviço (database-per-service)</text>
+  <rect x="70" y="880" width="520" height="50" rx="8" fill="#ffffff" stroke="#3B6D11" stroke-width="1" stroke-dasharray="4 4"/>
+  <text x="330" y="910" text-anchor="middle" font-size="12" fill="#173404">volume shared-storage: /app/storage/{uploads,frames,zips}</text>
+
+  <rect x="650" y="655" width="290" height="300" rx="16" fill="#FCEBEB" stroke="#A32D2D" stroke-width="1"/>
+  <text x="670" y="681" font-size="14" font-weight="600" fill="#501313">Notificação</text>
+  <rect x="680" y="710" width="230" height="60" rx="8" fill="#ffffff" stroke="#A32D2D" stroke-width="1"/>
+  <text x="795" y="736" text-anchor="middle" font-size="12" fill="#791F1F">SMTP</text>
+  <text x="795" y="754" text-anchor="middle" font-size="12" fill="#791F1F">MailHog (dev) / SMTP real (prod)</text>
+
+  <rect x="970" y="655" width="290" height="300" rx="16" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="1"/>
+  <text x="990" y="681" font-size="14" font-weight="600" fill="#2C2C2A">CI/CD</text>
+  <rect x="1000" y="710" width="230" height="80" rx="8" fill="#ffffff" stroke="#5F5E5A" stroke-width="1"/>
+  <text x="1115" y="736" text-anchor="middle" font-size="12" fill="#444441">GitHub Actions</text>
+  <text x="1115" y="754" text-anchor="middle" font-size="11" fill="#444441">build+test → ECR → ECS</text>
+  <text x="1115" y="772" text-anchor="middle" font-size="11" fill="#444441">(deploy ECS: placeholder)</text>
+
+  <!-- arrows to DBs -->
+  <line x1="205" y1="265" x2="195" y2="700" stroke="#3B6D11" stroke-width="1" marker-end="url(#arrow)"/>
+  <line x1="505" y1="265" x2="465" y2="700" stroke="#3B6D11" stroke-width="1" marker-end="url(#arrow)"/>
+  <line x1="805" y1="625" x2="195" y2="760" stroke="#3B6D11" stroke-width="1" marker-end="url(#arrow)"/>
+  <line x1="1105" y1="625" x2="465" y2="760" stroke="#3B6D11" stroke-width="1" marker-end="url(#arrow)"/>
+
+  <line x1="505" y1="265" x2="300" y2="880" stroke="#3B6D11" stroke-width="1" stroke-dasharray="2 3" marker-end="url(#arrow)"/>
+  <line x1="805" y1="625" x2="400" y2="880" stroke="#3B6D11" stroke-width="1" stroke-dasharray="2 3" marker-end="url(#arrow)"/>
+
+  <line x1="1105" y1="625" x2="795" y2="710" stroke="#A32D2D" stroke-width="1" marker-end="url(#arrow)"/>
+</svg>

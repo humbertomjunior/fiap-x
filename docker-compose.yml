@@ -23,7 +23,7 @@ services:
     container_name: fiapx-localstack
     environment:
       SERVICES: sqs
-      AWS_DEFAULT_REGION: us-east-1
+      AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
     ports:
@@ -38,6 +38,19 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+  sqs-admin:
+    image: pacovk/sqs-admin
+    container_name: fiapx-sqs-admin
+    environment:
+      - SQS_ENDPOINT_URL=http://localstack:4566
+      - SQS_AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    ports:
+      - "3999:3999"
+    depends_on:
+      localstack:
+        condition: service_healthy
 
   mailhog:
     image: mailhog/mailhog:v1.0.1
@@ -58,7 +71,7 @@ services:
       dockerfile: auth-service/Dockerfile
     container_name: fiapx-auth-service
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=prod,local
       - DB_URL=jdbc:postgresql://fiapx-postgres:5432/fiapx_auth
       - DB_USER=postgres
       - DB_PASSWORD=postgres
@@ -75,7 +88,7 @@ services:
       dockerfile: video-api-service/Dockerfile
     container_name: fiapx-video-api-service
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=prod,local
       - DB_URL=jdbc:postgresql://fiapx-postgres:5432/fiapx_video
       - DB_USER=postgres
       - DB_PASSWORD=postgres
@@ -106,7 +119,7 @@ services:
       dockerfile: video-worker-service/Dockerfile
     container_name: fiapx-video-worker-service
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=prod,local
       - DB_URL=jdbc:postgresql://fiapx-postgres:5432/fiapx_video_worker
       - DB_USER=postgres
       - DB_PASSWORD=postgres
@@ -136,7 +149,7 @@ services:
       dockerfile: notification-service/Dockerfile
     container_name: fiapx-notification-service
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=prod,local
       - DB_URL=jdbc:postgresql://fiapx-postgres:5432/fiapx_notification
       - DB_USER=postgres
       - DB_PASSWORD=postgres
