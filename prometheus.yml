@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'auth-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['auth-service:8081']
+
+  - job_name: 'notification-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['notification-service:8084']
+
+  - job_name: 'video-api-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: [ 'video-api-service:8082' ]
+
+  - job_name: 'video-worker-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: [ 'video-worker-service:8083' ]

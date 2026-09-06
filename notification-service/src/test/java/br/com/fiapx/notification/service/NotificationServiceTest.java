@@ -3,6 +3,7 @@ package br.com.fiapx.notification.service;
 import br.com.fiapx.common.event.VideoStatusEvent;
 import br.com.fiapx.notification.domain.NotificationHistory;
 import br.com.fiapx.notification.dto.NotificationResponseDTO;
+import br.com.fiapx.notification.metrics.NotificationMetrics;
 import br.com.fiapx.notification.repository.NotificationHistoryRepository;
 import br.com.fiapx.notification.security.AuthenticatedUser;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,9 @@ class NotificationServiceTest {
 
     @Mock
     private NotificationEmailSender notificationEmailSender;
+
+    @Mock
+    private NotificationMetrics notificationMetrics;
 
     @InjectMocks
     private NotificationService notificationService;

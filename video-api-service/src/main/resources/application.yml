@@ -22,3 +22,15 @@ app:
     upload-dir: ${UPLOAD_DIR:./storage/uploads}
     frames-dir: ${FRAMES_DIR:./storage/frames}
     zips-dir: ${ZIPS_DIR:./storage/zips}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
