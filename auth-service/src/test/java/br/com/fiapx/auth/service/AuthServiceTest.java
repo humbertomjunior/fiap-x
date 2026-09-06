@@ -5,6 +5,7 @@ import br.com.fiapx.auth.dto.AuthResponseDTO;
 import br.com.fiapx.auth.dto.LoginRequestDTO;
 import br.com.fiapx.auth.dto.RegisterRequestDTO;
 import br.com.fiapx.auth.dto.UserResponseDTO;
+import br.com.fiapx.auth.metrics.AuthMetrics;
 import br.com.fiapx.auth.repository.UserRepository;
 import br.com.fiapx.auth.security.JwtTokenService;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,9 @@ class AuthServiceTest {
 
     @Mock
     private JwtTokenService jwtTokenService;
+
+    @Mock
+    private AuthMetrics authMetrics;
 
     @InjectMocks
     private AuthService authService;

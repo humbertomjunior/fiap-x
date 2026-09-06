@@ -5,6 +5,7 @@ import br.com.fiapx.videoapi.config.StorageProperties;
 import br.com.fiapx.videoapi.domain.Video;
 import br.com.fiapx.videoapi.domain.VideoStatus;
 import br.com.fiapx.videoapi.dto.VideoUploadResponseDTO;
+import br.com.fiapx.videoapi.metrics.VideoApiMetrics;
 import br.com.fiapx.videoapi.repository.VideoRepository;
 import br.com.fiapx.videoapi.security.AuthenticatedUser;
 import io.awspring.cloud.sqs.operations.SqsTemplate;
@@ -25,9 +26,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,6 +40,7 @@ class VideoServiceTest {
         VideoRepository repository = mock(VideoRepository.class);
         SqsTemplate sqsTemplate = mock(SqsTemplate.class);
         Environment environment = mock(Environment.class);
+        VideoApiMetrics metrics = mock(VideoApiMetrics.class);
         AuthenticatedUser user = new AuthenticatedUser(UUID.randomUUID(), "user@fiapx.com");
         MockMultipartFile file = new MockMultipartFile("file", "../video.mp4", "video/mp4", "video".getBytes());
         UUID videoId = UUID.randomUUID();
@@ -50,7 +50,7 @@ class VideoServiceTest {
             return video;
         });
 
-        VideoService service = new VideoService(repository, sqsTemplate, storage(tempDir), environment);
+        VideoService service = new VideoService(repository, sqsTemplate, storage(tempDir), environment, metrics);
 
         VideoUploadResponseDTO response = service.uploadVideo(user, file, "  My title  ");
 
@@ -70,7 +70,7 @@ class VideoServiceTest {
 
     @Test
     void shouldRejectUnsupportedExtension() {
-        VideoService service = new VideoService(mock(VideoRepository.class), mock(SqsTemplate.class), storage(tempDir), mock(Environment.class));
+        VideoService service = new VideoService(mock(VideoRepository.class), mock(SqsTemplate.class), storage(tempDir), mock(Environment.class), mock(VideoApiMetrics.class));
 
         assertThatThrownBy(() -> service.uploadVideo(
                 new AuthenticatedUser(UUID.randomUUID(), "user@fiapx.com"),
@@ -82,7 +82,7 @@ class VideoServiceTest {
 
     @Test
     void shouldRejectEmptyFile() {
-        VideoService service = new VideoService(mock(VideoRepository.class), mock(SqsTemplate.class), storage(tempDir), mock(Environment.class));
+        VideoService service = new VideoService(mock(VideoRepository.class), mock(SqsTemplate.class), storage(tempDir), mock(Environment.class), mock(VideoApiMetrics.class));
 
         assertThatThrownBy(() -> service.uploadVideo(
                 new AuthenticatedUser(UUID.randomUUID(), "user@fiapx.com"),
@@ -104,7 +104,7 @@ class VideoServiceTest {
         video.setZipStoragePath("/tmp/video.zip");
         when(repository.findByUserIdOrderByCreatedAtDesc(user.userId())).thenReturn(List.of(video));
 
-        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class));
+        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class), mock(VideoApiMetrics.class));
 
         assertThat(service.listVideos(user)).hasSize(1);
     }
@@ -121,7 +121,7 @@ class VideoServiceTest {
         video.setZipStoragePath(zipPath.toString());
         when(repository.findByIdAndUserId(videoId, user.userId())).thenReturn(Optional.of(video));
 
-        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class));
+        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class), mock(VideoApiMetrics.class));
         Resource resource = service.downloadZip(user, videoId);
 
         assertThat(resource.exists()).isTrue();
@@ -135,7 +135,7 @@ class VideoServiceTest {
         UUID videoId = UUID.randomUUID();
         when(repository.findByIdAndUserId(videoId, user.userId())).thenReturn(Optional.empty());
 
-        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class));
+        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class), mock(VideoApiMetrics.class));
 
         assertThatThrownBy(() -> service.downloadZip(user, videoId))
                 .isInstanceOf(VideoNotFoundException.class)
@@ -152,7 +152,7 @@ class VideoServiceTest {
         video.setStatus(VideoStatus.PROCESSING);
         when(repository.findByIdAndUserId(videoId, user.userId())).thenReturn(Optional.of(video));
 
-        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class));
+        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class), mock(VideoApiMetrics.class));
 
         assertThatThrownBy(() -> service.downloadZip(user, videoId))
                 .isInstanceOf(IllegalStateException.class)
@@ -169,7 +169,7 @@ class VideoServiceTest {
         video.setStatus(VideoStatus.FINISHED);
         when(repository.findByIdAndUserId(videoId, user.userId())).thenReturn(Optional.of(video));
 
-        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class));
+        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class), mock(VideoApiMetrics.class));
 
         assertThatThrownBy(() -> service.downloadZip(user, videoId))
                 .isInstanceOf(IllegalStateException.class)
@@ -187,7 +187,7 @@ class VideoServiceTest {
         video.setZipStoragePath(tempDir.resolve("missing.zip").toString());
         when(repository.findByIdAndUserId(videoId, user.userId())).thenReturn(Optional.of(video));
 
-        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class));
+        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class), mock(VideoApiMetrics.class));
 
         assertThatThrownBy(() -> service.downloadZip(user, videoId))
                 .isInstanceOf(VideoNotFoundException.class)
@@ -208,7 +208,7 @@ class VideoServiceTest {
         UUID videoId = UUID.randomUUID();
         when(repository.findById(videoId)).thenReturn(Optional.of(video));
 
-        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class));
+        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class), mock(VideoApiMetrics.class));
 
         service.updateVideoStatus(videoId, VideoStatus.FINISHED, "/tmp/video.zip", null);
 
@@ -223,7 +223,7 @@ class VideoServiceTest {
         UUID videoId = UUID.randomUUID();
         when(repository.findById(videoId)).thenReturn(Optional.empty());
 
-        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class));
+        VideoService service = new VideoService(repository, mock(SqsTemplate.class), storage(tempDir), mock(Environment.class), mock(VideoApiMetrics.class));
 
         assertThatThrownBy(() -> service.updateVideoStatus(videoId, VideoStatus.ERROR, null, "failure"))
                 .isInstanceOf(VideoNotFoundException.class)
