@@ -88,9 +88,7 @@ services:
       start_period: 10s
 
   auth-service:
-    build:
-      context: .
-      dockerfile: auth-service/Dockerfile
+    image: ${DOCKERHUB_USERNAME}/auth-service:latest
     container_name: fiapx-auth-service
     environment:
       - SPRING_PROFILES_ACTIVE=prod,local
@@ -105,9 +103,7 @@ services:
         condition: service_healthy
 
   video-api-service:
-    build:
-      context: .
-      dockerfile: video-api-service/Dockerfile
+    image: ${DOCKERHUB_USERNAME}/video-api-service:latest
     container_name: fiapx-video-api-service
     environment:
       - SPRING_PROFILES_ACTIVE=prod,local
@@ -136,9 +132,7 @@ services:
       - shared-storage:/app/storage
 
   video-worker-service:
-    build:
-      context: .
-      dockerfile: video-worker-service/Dockerfile
+    image: ${DOCKERHUB_USERNAME}/video-worker-service:latest
     container_name: fiapx-video-worker-service
     environment:
       - SPRING_PROFILES_ACTIVE=prod,local
@@ -166,9 +160,7 @@ services:
       - shared-storage:/app/storage
 
   notification-service:
-    build:
-      context: .
-      dockerfile: notification-service/Dockerfile
+    image: ${DOCKERHUB_USERNAME}/notification-service:latest
     container_name: fiapx-notification-service
     environment:
       - SPRING_PROFILES_ACTIVE=prod,local
