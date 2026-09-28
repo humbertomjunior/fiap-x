@@ -31,9 +31,9 @@ Biblioteca compartilhada (sem porta, sem Dockerfile) com:
 
 - `SqsQueueNames`: constantes com os nomes das 3 filas usadas no projeto.
 - Três eventos (`record`s Java, serializados como JSON pelo Spring Cloud AWS):
-    - `VideoProcessingEvent` — publicado pelo `video-api-service`, consumido pelo `video-worker-service`.
-    - `VideoStatusEvent` — publicado pelo `video-worker-service`, consumido por `video-api-service` **e** `notification-service`.
-    - `VideoNotificationEvent` — contrato reservado, não usado no fluxo principal atual.
+  - `VideoProcessingEvent` — publicado pelo `video-api-service`, consumido pelo `video-worker-service`.
+  - `VideoStatusEvent` — publicado pelo `video-worker-service`, consumido por `video-api-service` **e** `notification-service`.
+  - `VideoNotificationEvent` — contrato reservado, não usado no fluxo principal atual.
 
 ## `auth-service`
 
@@ -123,9 +123,62 @@ Documentação detalhada (incluindo comandos de inspeção e reprocessamento man
 | `fiapx-localstack` | Emula SQS localmente; cria as 3 filas + DLQs na subida |
 | `fiapx-sqs-admin` | UI web para inspecionar as filas |
 | `fiapx-mailhog` | SMTP fake + UI de e-mails recebidos (`:8025`) |
+| `prometheus` | Coleta métricas dos 4 serviços via scrape em `/actuator/prometheus` (`:9090`) |
+| `grafana` | Visualização das métricas coletadas pelo Prometheus (`:3000`) |
 | `fiapx-auth-service` ... `fiapx-notification-service` | Os 4 serviços da aplicação |
 
 Todos os serviços de aplicação sobem só depois que suas dependências passam no healthcheck (`condition: service_healthy`).
+
+## Observabilidade
+
+O projeto usa **Micrometer + Prometheus + Grafana** para monitoramento, seguindo o padrão de mercado para aplicações Spring Boot.
+
+### Como funciona
+
+Cada um dos 4 serviços expõe o Spring Boot Actuator com o registry do Prometheus (`micrometer-registry-prometheus`), publicando suas métricas em `/actuator/prometheus`. O Prometheus faz *scrape* (busca ativa) desse endpoint a cada 15 segundos, definido em `prometheus.yml` na raiz do projeto, e armazena os valores como série temporal. O Grafana consulta o Prometheus como fonte de dados e exibe tudo em dashboards.
+
+```
+[auth-service]            \
+[video-api-service]        \
+[video-worker-service]      >---- scrape /actuator/prometheus ----> [Prometheus :9090] ----> [Grafana :3000]
+[notification-service]     /
+```
+
+### Acessando as ferramentas
+
+| Ferramenta | URL | Uso |
+|---|---|---|
+| Prometheus | `http://localhost:9090` | Consultar métricas brutas (aba **Query**) e verificar status dos targets (**Status > Target health**) |
+| Grafana | `http://localhost:3000` | Dashboards visuais (login padrão `admin`/`admin`) |
+
+O arquivo `fiapx-dashboard.json` (na raiz do projeto) pode ser importado no Grafana em **Dashboards > New > Import**, apontando para o data source Prometheus.
+
+### Métricas built-in (Actuator)
+
+Sem nenhum código adicional, cada serviço já expõe métricas de infraestrutura: uso de memória JVM (`jvm_memory_used_bytes`), conexões do pool HikariCP (`hikaricp_connections_active`), taxa e latência de requisições HTTP (`http_server_requests_seconds`), garbage collection, threads, entre outras. Essas métricas são úteis para saúde geral da aplicação, mas não dizem nada sobre o negócio.
+
+### Métricas de negócio (customizadas)
+
+Cada serviço tem uma classe `XxxMetrics` (pacote `metrics/`) que registra contadores e timers específicos do domínio, injetada na classe de serviço correspondente:
+
+| Serviço | Classe | Métricas expostas |
+|---|---|---|
+| `auth-service` | `AuthMetrics` | `auth.login.attempts` (tag `status`), `auth.registrations` (tag `status`) |
+| `video-api-service` | `VideoApiMetrics` | `video.uploads` (tag `status`), `video.upload.size.bytes`, `video.upload.duration` |
+| `video-worker-service` | `VideoProcessingMetrics` | `video.processing` (tag `status`), `video.frames.extracted`, `video.processing.duration` |
+| `notification-service` | `NotificationMetrics` | `notifications.sent` (tag `status`), `notification.send.duration` |
+
+Todas seguem o padrão de separar sucesso/falha via tag `status`, permitindo calcular taxa de erro por serviço direto no Grafana (`rate(video_uploads_total{status="failure"}[5m])`, por exemplo).
+
+### Limitações conhecidas / próximos passos
+
+A observabilidade atual cobre saúde de infraestrutura e métricas de negócio por serviço, mas ainda **não** inclui:
+
+- **Alertas**: não há Alertmanager configurado; hoje a checagem de saúde é manual, olhando o Grafana ou `/targets` no Prometheus.
+- **Correlação entre serviços**: não existe um *correlation ID* propagado nos eventos SQS. Para rastrear a jornada completa de um vídeo específico (`video-api` → `video-worker` → `notification`), é preciso buscar o `videoId` manualmente nos logs de cada serviço.
+- **Métricas de fila**: não há métrica de profundidade de fila (mensagens pendentes) nem de taxa de mensagens indo para a DLQ — hoje essa checagem é feita manualmente pela UI do `sqs-admin`.
+- **Logs estruturados / centralizados**: não há agregação de logs (tipo ELK ou Loki); a inspeção é feita via `docker compose logs`.
+- **Tracing distribuído**: não há Zipkin/Jaeger/Tempo — sem visão de ponta a ponta de uma transação específica além do que métricas e logs permitem inferir.
 
 ## Build e CI/CD
 

@@ -69,10 +69,23 @@ services:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - TZ=America/Sao_Paulo
     volumes:
       - grafana-data:/var/lib/grafana
     depends_on:
       - prometheus
+
+  loki:
+    image: grafana/loki:3.5.0
+    container_name: loki
+    ports:
+      - "3100:3100"
+    environment:
+      - TZ=America/Sao_Paulo
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/loki
+      - ./docker/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
 
   mailhog:
     image: mailhog/mailhog:v1.0.1
@@ -87,10 +100,21 @@ services:
       retries: 5
       start_period: 10s
 
+  promtail:
+    image: grafana/promtail:3.5.0
+    container_name: fiapx-promtail
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+
   auth-service:
     image: ${DOCKERHUB_USERNAME}/auth-service:latest
     container_name: fiapx-auth-service
     environment:
+      - TZ=America/Sao_Paulo
       - SPRING_PROFILES_ACTIVE=prod,local
       - DB_URL=jdbc:postgresql://fiapx-postgres:5432/fiapx_auth
       - DB_USER=postgres
@@ -106,7 +130,8 @@ services:
     image: ${DOCKERHUB_USERNAME}/video-api-service:latest
     container_name: fiapx-video-api-service
     environment:
-      - SPRING_PROFILES_ACTIVE=prod,local
+      - TZ=America/Sao_Paulo
+      - SPRING_PROFILES_ACTIVE=prod
       - DB_URL=jdbc:postgresql://fiapx-postgres:5432/fiapx_video
       - DB_USER=postgres
       - DB_PASSWORD=postgres
@@ -135,7 +160,8 @@ services:
     image: ${DOCKERHUB_USERNAME}/video-worker-service:latest
     container_name: fiapx-video-worker-service
     environment:
-      - SPRING_PROFILES_ACTIVE=prod,local
+      - TZ=America/Sao_Paulo
+      - SPRING_PROFILES_ACTIVE=prod
       - DB_URL=jdbc:postgresql://fiapx-postgres:5432/fiapx_video_worker
       - DB_USER=postgres
       - DB_PASSWORD=postgres
@@ -163,6 +189,7 @@ services:
     image: ${DOCKERHUB_USERNAME}/notification-service:latest
     container_name: fiapx-notification-service
     environment:
+      - TZ=America/Sao_Paulo
       - SPRING_PROFILES_ACTIVE=prod,local
       - DB_URL=jdbc:postgresql://fiapx-postgres:5432/fiapx_notification
       - DB_USER=postgres
@@ -190,3 +217,5 @@ volumes:
   localstack_data:
   shared-storage:
   grafana-data:
+  loki-data:
+  alloy-data:
